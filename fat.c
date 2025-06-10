@@ -65,22 +65,21 @@ int fat_format(const char *filename){
 
     // se estiver montado, causa erro
     if (mountState) return ERRO;
-
+    
+    // preenche buffer com zeros
     FILE *file;
-    file = fopen("/dev/zero","r");
+    if( !(file = fopen("/dev/zero","r")) ) {
+        printf ("Não foi possível abrir '/dev/zero': %s\n", strerror(errno));
+        return ERRO;
+    }
     char buffer[BLOCK_SIZE * 4]; // "sizeof(BYTE) = 4"
     read(file, buffer, sizeof(buffer));
     close(file);
-
 
     // escreve NULL em todos os blocos (exceto superbloco)
     for (int i = DIR; i < ds_size(); i++) {
         ds_write(SUPER + i, buffer);
     }
-
-
-
-
 
   	return 0;
 }
@@ -101,10 +100,10 @@ void fat_debug(){
 		printf("Valor do Número mágico incorreto! (x%x)\n", state_sb.magic);
 	}
 	printf("Quantidade de blocos: %d\n", state_sb.number_blocks);
-	printf("FAT está usando %d blocos\n", state_sb.n_fat_blocks);
+	printf("Quantidade de blocos da FAT: %d\n", state_sb.n_fat_blocks);
 	
 	//leitura da FAT no disco
-	state_FAT = (unsigned int *)malloc(state_sb.number_blocks * sizeof(unsigned int));
+	state_FAT = (unsigned int *)malloc(state_sb.number_blocks * sizeof(unsigned int)); // 20 * 4 = 80
 	if(state_FAT == NULL){
 		fprintf(stderr, "Erro: Falha na alocação de memória para a FAT durante depuração.\n");
         return;
@@ -112,21 +111,21 @@ void fat_debug(){
 
 	//percorrer os blocos da FAT
 	for(int i = 0; i < state_sb.n_fat_blocks; i++){
-		ds_read(FAT + i, (char *)&state_FAT[i * (BLOCK_SIZE/ sizeof(unsigned int))]);
+		ds_read(FAT + i, (char *)&state_FAT[i * (BLOCK_SIZE / sizeof(unsigned int))]);
 	}
 	
 	//Ler diretório 
-	ds_read(DIR, (char *)&state_dir);
+	ds_read(DIR, (char *)&state_dir); // 256 campos de 16 bytes
 	
 	printf("---- | Diretório | ---- \n");
-	for(int i = 0; i < N_ITEMS; i++){
+	for(int i = 0; i < N_ITEMS; i++){ // até 256
 		if(state_dir[i].used == OK){
 			printf("Nome do Arquivo: %s\n", state_dir[i].name);
 			printf("Tamanho: %d\n", state_dir[i].length);
 			printf("Blocos: ");
 
-			int blocos = state_dir[i].first;
-			while(blocos != EOFF && blocos != FREE && blocos < state_sb.number_blocks){
+			int blocos = state_dir[i].first; // blocos supostamente pode ir até 20, sendo 0 e 1 valores especiais
+			while(blocos != EOFF && blocos != FREE && blocos < state_sb.number_blocks){ // TODO: "blocos < state_sb.number_blocks" é necessário?
 				printf("%d ", blocos);
 				if(state_FAT[blocos] == EOFF) break;
 				blocos = state_FAT[blocos];
