@@ -27,7 +27,7 @@ um arquivo por baixo) e a interface de comandos.
 
 Compila e executa o programa com o arquivo imagem-pronta (20 blocos, 3 arquivos).
 
-> sys >\ help
+> sys > help
 
 Exibe comandos
 
@@ -60,51 +60,59 @@ subdiretórios.
 ## Operações da FAT:
 
 - > int fat_format();
+
 Cria um novo sistema de arquivos no disco atual, apagando tudo se for o caso. Cria o superbloco, o diretório e a FAT. Se alguém tentar formatar um sistema de arquivos
 montado, nada deve ser feito, e um código de erro é devolvido. Devolver 0 indica
 sucesso e -1, erro.
 
 - > void fat_debug();
+
 Exibe informações do disco, assim:
 > superblock:
+>
 > magic is ok
+>
 > 45 blocks
+>
 > 1 block fat
+>
 > File "bill":
+>
 > size: 5560 bytes
+>
 > Blocks: 34 28
+>
 > File "todo":
+>
 > size: 12330 bytes
+>
 > Blocks: 12 13 17
+
 Não importa se está montado ou não.
 
 - > int fat_mount();
-Verifica se o sistema de arquivos é válido. Se for, traz a FAT e o diretório para a RAM,
-representadas com registros (structures). As operações abaixo não têm como
-funcionar se o sistema de arquivos não estiver montado. Devolver 0 indica sucesso e
--1, erro.
+
+Verifica se o sistema de arquivos é válido. Se for, traz a FAT e o diretório para a RAM, representadas com registros (structures). As operações abaixo não têm como funcionar se o sistema de arquivos não estiver montado. Devolver 0 indica sucesso e -1, erro.
 
 - > int fat_create( char *name );
-Cria uma entrada de diretório descrevendo um arquivo vazio. A atualização do
-diretório acontece na RAM e no disco. Devolver 0 indica sucesso e -1, erro.
+
+Cria uma entrada de diretório descrevendo um arquivo vazio. A atualização do diretório acontece na RAM e no disco. Devolver 0 indica sucesso e -1, erro.
 
 - > int fat_delete( char *name );
-Remove o arquivo, liberando todos os blocos associados com o nome, atualizando a
-FAT na RAM e no disco. Em seguida, libera a entrada no diretório. Devolver 0 indica
+
+Remove o arquivo, liberando todos os blocos associados com o nome, atualizando a FAT na RAM e no disco. Em seguida, libera a entrada no diretório. Devolver 0 indica
 sucesso e -1, erro.
 
 - > int fat_getsize( char *name );
+
 Devolve o número de bytes do arquivo. Em caso de erro, devolve -1.
 
 - > int fat_read( char *name, char *buff, int length, int offset );
+
 Lê dados de um arquivo válido. Copia length bytes do arquivo para buff, começando
-offset bytes a partir do início do arquivo. Devolve o total de bytes lidos. Esse valor
-pode ser menor que length se chega ao fim do arquivo. Em caso de erro, devolve -1.
+offset bytes a partir do início do arquivo. Devolve o total de bytes lidos. Esse valor pode ser menor que length se chega ao fim do arquivo. Em caso de erro, devolve -1.
 
 - > int fat_write( char *name, const char *buff, int length, int offset );
-Escreve dados em um arquivo. Copia length bytes de buff para o arquivo,
-começando de offset bytes a partir do início do arquivo. Em geral, essa operação
-envolve a alocação de blocos livres. Devolve o total de bytes escritos. Esse valor
-pode ser menor que length, por exemplo, se o disco enche. Em caso de erro,
-devolve -1.
+
+Escreve dados em um arquivo. Copia length bytes de buff para o arquivo, começando de offset bytes a partir do início do arquivo. Em geral, essa operação envolve a alocação de blocos livres. Devolve o total de bytes escritos. Esse valor pode ser menor que length, por exemplo, se o disco enche. Em caso de erro, devolve -1.
 
