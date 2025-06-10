@@ -89,7 +89,7 @@ void fat_debug(){
 
 	super state_sb;						//Estado do Superbloco atual
 	dir_item state_dir[N_ITEMS];		//Estado do diretório no momento
-	unsigned int * state_FAT = NULL;	//Estado da FAT
+	unsigned int *state_FAT = NULL;	//Estado da FAT
 
 	//tratamento do superbloco
 	ds_read(SUPER, (char *)&state_sb);
@@ -103,7 +103,7 @@ void fat_debug(){
 	printf("Quantidade de blocos da FAT: %d\n", state_sb.n_fat_blocks);
 	
 	//leitura da FAT no disco
-	state_FAT = (unsigned int *)malloc(state_sb.number_blocks * sizeof(unsigned int)); // 20 * 4 = 80
+	state_FAT = (unsigned int *)malloc(state_sb.number_blocks * BLOCK_SIZE);
 	if(state_FAT == NULL){
 		fprintf(stderr, "Erro: Falha na alocação de memória para a FAT durante depuração.\n");
         return;
@@ -111,20 +111,20 @@ void fat_debug(){
 
 	//percorrer os blocos da FAT
 	for(int i = 0; i < state_sb.n_fat_blocks; i++){
-		ds_read(FAT + i, (char *)&state_FAT[i * (BLOCK_SIZE / sizeof(unsigned int))]);
+		ds_read(FAT + i, (char *) &state_FAT[i * (BLOCK_SIZE / sizeof(unsigned int))]);
 	}
 	
 	//Ler diretório 
-	ds_read(DIR, (char *)&state_dir); // 256 campos de 16 bytes
+	ds_read(DIR, (char *)&state_dir);
 	
 	printf("---- | Diretório | ---- \n");
-	for(int i = 0; i < N_ITEMS; i++){ // até 256
+	for(int i = 0; i < N_ITEMS; i++){
 		if(state_dir[i].used == OK){
 			printf("Nome do Arquivo: %s\n", state_dir[i].name);
 			printf("Tamanho: %d\n", state_dir[i].length);
 			printf("Blocos: ");
 
-			int blocos = state_dir[i].first; // blocos supostamente pode ir até 20, sendo 0 e 1 valores especiais
+			int blocos = state_dir[i].first;
 			while(blocos != EOFF && blocos != FREE && blocos < state_sb.number_blocks){ // TODO: "blocos < state_sb.number_blocks" é necessário?
 				printf("%d ", blocos);
 				if(state_FAT[blocos] == EOFF) break;

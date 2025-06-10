@@ -49,6 +49,12 @@ static void check( int number, const void *buff )
 	}
 }
 
+/**
+ * number: número do bloco
+ * buff: buffer de tamanho BLOCK_SIZE (4096)
+ * 
+ * o buffer ter tamanho menor que BLOCK_SIZE pode resultar em comportamento inesperado
+ */
 void ds_read( int number, char *buff )
 {
 	int x;
@@ -64,6 +70,12 @@ void ds_read( int number, char *buff )
 	}
 }
 
+/**
+ * number: número do bloco
+ * buff: buffer de tamanho BLOCK_SIZE (4096)
+ * 
+ * o buffer ter tamanho menor que BLOCK_SIZE pode resultar em comportamento inesperado
+ */
 void ds_write( int number, const char *buff )
 {
 	int x;
