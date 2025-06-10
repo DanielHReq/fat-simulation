@@ -20,7 +20,7 @@
 typedef struct{
 	int magic;
 	int number_blocks;
-	int n_fat_blocks;			//quantos blocos a FAT precisa
+	int n_fat_blocks;			//quantos blocos a FAT ocupa
 	char empty[BLOCK_SIZE-3*sizeof(int)];
 } super;
 
@@ -105,8 +105,46 @@ void fat_debug(){
 	free(state_FAT);
 }
 
+#define ERRO -1
+#define DONE 0
 int fat_mount(){
-  	return 0;
+	printf("---- Iniciando Montagem... ----\n");
+  	super state_sb;
+	ds_read(SUPER, (char*)&state_sb);
+	if(state_sb.magic != MAGIC_N){
+		printf("Número mágico inválido. FAT inválida \n");
+		return ERRO;
+	}
+
+	//trazer Superbloco para memória (sb é a variável global que o recebe, declarada no começo do código)
+	memcpy(&sb, &state_sb, sizeof(super));
+
+	
+	//alocar memória para a FAT
+	if(fat == NULL){
+		fat = (unsigned int *)malloc(sb.number_blocks * sizeof(unsigned int));
+		if (fat == NULL) {
+			fprintf(stderr, "Falha na alocação de memória para a FAT\n");
+			return ERRO;
+		}
+	}
+	
+	/* Trazer FAT para RAM */
+	int entries_per_block = BLOCK_SIZE / sizeof(unsigned int);
+	for(int i = 0; i < sb.n_fat_blocks; i++){
+		// como lemos por blocos, e cada bloco possue 1024 entradas, inserimos 1024 entradas no nosso array da fat por vez
+		// Vantagens da alocação dinâmica
+		ds_read(FAT + i, (char *)&fat[i * entries_per_block]);
+	}	
+
+	/* Trazer diretório para a RAM */
+	ds_read(DIR, (char*)&dir);
+
+	mountState = 1;
+
+	return DONE;
+
+
 }
 
 int fat_create(char *name){
