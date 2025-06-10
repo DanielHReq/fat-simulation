@@ -153,8 +153,9 @@ int fat_mount(){
 	
 	//alocar memória para a FAT
 	if(fat == NULL){
-		fat = (unsigned int *)malloc(sb.number_blocks * sizeof(unsigned int));
-		if (fat == NULL) {
+        //fat = (unsigned int *)malloc(sb.number_blocks * sizeof(unsigned int));
+        fat = (unsigned int *)malloc(state_sb.number_blocks * BLOCK_SIZE);
+        if (fat == NULL) {
 			fprintf(stderr, "Falha na alocação de memória para a FAT\n");
 			return ERRO;
 		}
