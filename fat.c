@@ -8,6 +8,9 @@
 #include <strings.h>
 #include <unistd.h>
 
+#define ERRO -1
+#define DONE 0
+
 #define SUPER 0
 #define DIR 1
 #define FAT 2
@@ -48,7 +51,37 @@ unsigned int *fat;				//Variável para trazer a FAT para RAM (tomar cuidado, alo
 
 int mountState = 0;				// 0 = n montado, 1 = montado
 
-int fat_format(){ 
+/**
+ * Cria novo sistema de arquivos no disco atual
+ * 
+ * 1. Criar superbloco
+ * 2. Criar diretório
+ * 3. Criar FAT
+ * 
+ * Não é possível formatar um sistema de arquivos já montado
+ * 
+ */
+int fat_format(const char *filename){ 
+
+    // se estiver montado, causa erro
+    if (mountState) return ERRO;
+
+    FILE *file;
+    file = fopen("/dev/zero","r");
+    char buffer[BLOCK_SIZE * 4]; // "sizeof(BYTE) = 4"
+    read(file, buffer, sizeof(buffer));
+    close(file);
+
+
+    // escreve NULL em todos os blocos (exceto superbloco)
+    for (int i = DIR; i < ds_size(); i++) {
+        ds_write(SUPER + i, buffer);
+    }
+
+
+
+
+
   	return 0;
 }
 
@@ -105,8 +138,7 @@ void fat_debug(){
 	free(state_FAT);
 }
 
-#define ERRO -1
-#define DONE 0
+
 int fat_mount(){
 	printf("---- Iniciando Montagem... ----\n");
   	super state_sb;

@@ -1,4 +1,3 @@
-
 void fat_debug();
 int  fat_format();
 int  fat_mount();
