@@ -363,12 +363,42 @@ int fat_getsize(char *name){
 	return dir[i].length;
 }
 
-//Retorna a quantidade de caracteres lidos
+/**
+ * Lê um arquivo válido.
+ * Copia lenght bytes do arquivo para buff, começando offset bytes do início do arquivo.
+ * 
+ * Retorna total de bytes lidos.
+ * 
+ * Se encontra fim de arquivo retorna sem erros.
+ * Se ocorrer erro, retorna -1.
+ * 
+ * name: nome do arquivo que será lido, de no máximo 6 caracteres.
+ * buff: buffer que recebe os bytes do arquivo lido
+ * lenght: quantidade de bytes sequenciais para serem lidos
+ * offset: distancia em bytes do início do arquivo para começar a leitura
+ * 
+ */
 int fat_read(char *name, char *buff, int length, int offset){
 	return 0;
 }
 
 //Retorna a quantidade de caracteres escritos
+/**
+ * Escreve dados em um arquivo.
+ * Copia lenght bytes de buff para o arquivo começando de inicio do arquivo + offset.
+ * 
+ * Conforme necessário são alocados novos blocos livres.
+ * 
+ * Retorna total de bytes escritos
+ * 
+ * Se o disco enche retorna sem erro
+ * Se ocorrer erro, retorna -1
+ * 
+ * name: nome do arquivo de no máximo 6 caracteres.
+ * buff: buffer que recebe os bytes do arquivo lido
+ * lenght: quantidade de bytes sequenciais para serem lidos
+ * offset: distancia em bytes do início do arquivo para começar a leitura
+ */
 int fat_write(char *name, const char *buff, int length, int offset){
 	return 0;
 }
