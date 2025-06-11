@@ -75,6 +75,23 @@ int mountState = 0;				// 0 = n montado, 1 = montado
 
 
 /**
+ * Recebe um buffer (char *) e a quantidade de caracteres e o preenche com zeros
+ */
+void zeros_buffer (char *buffer, unsigned int len) {
+
+    FILE *file;
+    if( !(file = fopen("/dev/zero","r")) ) {
+        printf ("Não foi possível abrir '/dev/zero': %s\n", strerror(errno));
+        return ERRO;
+    }
+    fread(buffer, len, 1, file);
+    close(file);
+
+}
+
+
+
+/**
  * Cria novo sistema de arquivos no disco atual
  * 
  * 1. Criar superbloco
@@ -87,9 +104,11 @@ int mountState = 0;				// 0 = n montado, 1 = montado
 int fat_format(const char *filename){ 
 
     // se estiver montado, causa erro
+
     if (mountState) return ERRO;
     
     // preenche buffer com zeros
+
     FILE *file;
     if( !(file = fopen("/dev/zero","r")) ) {
         printf ("Não foi possível abrir '/dev/zero': %s\n", strerror(errno));
@@ -100,6 +119,7 @@ int fat_format(const char *filename){
     close(file);
 
     // escreve NULL em todos os blocos (exceto superbloco)
+
     for (int i = DIR; i < ds_size(); i++) {
         ds_write(SUPER + i, buffer);
     }
@@ -256,20 +276,79 @@ int fat_create(char *name){
   	return 0;
 }
 
-int fat_delete( char *name){
+/**
+ * Remove o arquivo e libera todos os blocos associados à este
+ * 
+ * Atualiza a FAT no disco e RAM
+ * 
+ * Por último, libera a entrada no diretório
+ * 
+ * name: nome do arquivo
+ * 
+ */
+int fat_delete(char *name){
+
+    if (mountState == 0) return ERRO;
+
+    if (strlen(name) > MAX_LETTERS) return ERRO;
+
+    // procura o arquivo pelo nome
+
+    int i;
+    for (i = 0; i < N_ITEMS; i++) {
+
+        if (dir[i].used == OK) {
+            if (strcmp(dir[i].name, name) == 0) break;
+        }
+    }
+    if (i == N_ITEMS) return ERRO;
+    printf ("%d\n",i);
+    printf ("%s\n",dir[i].name);
+    printf ("%d\n",dir[i].used);
+    // preenche buffer com zeros
+    
+    char buffer[BLOCK_SIZE];
+    zeros_buffer (buffer, BLOCK_SIZE); // daqui em diante o buffer está preenchido com zeros
+    
+    unsigned int fat_index = dir[i].first;
+    
+    // remove o item do diretório
+    
+    dir[i].used = NON_OK; // marcado como não usado
+    
+    // remove os blocos associados
+
+    unsigned int fat_special = FAT_INDEX_2_SPECIAL(fat_index);
+    do {
+        ds_write (SPECIAL_2_BLOCK(fat_special), buffer);
+        fat_index = SPECIAL_2_FAT_INDEX(fat_special);
+        fat_special = fat[fat_index];
+
+        fat[fat_index] = 0; // liberar o endereço na FAT
+
+    } while(fat_special != EOFF && fat_special != FREE);
+    
+    // atualiza a FAT no disco
+
+    ds_write (FAT, fat);
+
+    // atualiza o diretório
+
+    ds_write (DIR, dir);
+
   	return 0;
 }
 
-int fat_getsize( char *name){ 
+int fat_getsize(char *name){ 
 	return 0;
 }
 
 //Retorna a quantidade de caracteres lidos
-int fat_read( char *name, char *buff, int length, int offset){
+int fat_read(char *name, char *buff, int length, int offset){
 	return 0;
 }
 
 //Retorna a quantidade de caracteres escritos
-int fat_write( char *name, const char *buff, int length, int offset){
+int fat_write(char *name, const char *buff, int length, int offset){
 	return 0;
 }
