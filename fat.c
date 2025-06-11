@@ -346,8 +346,21 @@ int fat_delete(char *name){
   	return 0;
 }
 
-int fat_getsize(char *name){ 
-	return 0;
+/**
+ * Devolve o tamanho em bytes do arquivo
+ */
+int fat_getsize(char *name){
+
+    if (mountState == 0) return ERRO;
+
+    if (strlen(name) > MAX_LETTERS) return ERRO;
+
+    // procura o arquivo pelo nome
+
+    int i = search_item_by_name (name);
+    if (i == -1) return ERRO;
+
+	return dir[i].length;
 }
 
 //Retorna a quantidade de caracteres lidos
