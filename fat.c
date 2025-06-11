@@ -109,14 +109,8 @@ int fat_format(const char *filename){
     
     // preenche buffer com zeros
 
-    FILE *file;
-    if( !(file = fopen("/dev/zero","r")) ) {
-        printf ("Não foi possível abrir '/dev/zero': %s\n", strerror(errno));
-        return ERRO;
-    }
-    char buffer[BLOCK_SIZE * 4]; // "sizeof(BYTE) = 4"
-    read(file, buffer, sizeof(buffer));
-    close(file);
+    char buffer[BLOCK_SIZE];
+    zeros_buffer (buffer, BLOCK_SIZE);
 
     // escreve NULL em todos os blocos (exceto superbloco)
 
@@ -212,7 +206,7 @@ int fat_mount(){
 	/* Trazer FAT para RAM */
 	int entries_per_block = BLOCK_SIZE / sizeof(unsigned int);
 	for(int i = 0; i < sb.n_fat_blocks; i++){
-		// como lemos por blocos, e cada bloco possue 1024 entradas, inserimos 1024 entradas no nosso array da fat por vez
+		// como lemos por blocos, e cada bloco possui 1024 entradas, inserimos 1024 entradas no nosso array da fat por vez
 		// Vantagens da alocação dinâmica
 		ds_read(FAT + i, (char *)&fat[i * entries_per_block]);
 	}	
