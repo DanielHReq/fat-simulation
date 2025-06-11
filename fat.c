@@ -74,6 +74,8 @@ int mountState = 0;				// 0 = n montado, 1 = montado
 #define BLOCK_2_SPECIAL(x) x - 1
 
 
+// ====== FUNÇÕES AUXILIARES ======
+
 /**
  * Recebe um buffer (char *) e a quantidade de caracteres e o preenche com zeros
  */
@@ -89,6 +91,22 @@ void zeros_buffer (char *buffer, unsigned int len) {
 
 }
 
+/**
+ * Retorna o índice no diretório se achar e -1 se não
+ */
+int search_item_by_name (char *name) {
+
+    int i;
+    for (i = 0; i < N_ITEMS; i++) {
+
+        if (dir[i].used == OK) {
+            if (strcmp(dir[i].name, name) == 0) return i;
+        }
+    }
+    return ERRO;
+}
+
+// ======
 
 
 /**
@@ -233,9 +251,12 @@ int fat_create(char *name){
 
     if (strlen (name) > MAX_LETTERS) return ERRO;
 
+    // se já houver item de mesmo nome, ERRO
+
+    int i = search_item_by_name (name);
+    if (i >= 0) return ERRO;
+
     // procura bloco vago
-    
-    int i;
 
     for (i = 0; i < N_DATA_BLOCKS(sb); i++) {
         
@@ -288,17 +309,9 @@ int fat_delete(char *name){
 
     // procura o arquivo pelo nome
 
-    int i;
-    for (i = 0; i < N_ITEMS; i++) {
-
-        if (dir[i].used == OK) {
-            if (strcmp(dir[i].name, name) == 0) break;
-        }
-    }
-    if (i == N_ITEMS) return ERRO;
-    printf ("%d\n",i);
-    printf ("%s\n",dir[i].name);
-    printf ("%d\n",dir[i].used);
+    int i = search_item_by_name (name);
+    if (i == -1) return ERRO;
+    
     // preenche buffer com zeros
     
     char buffer[BLOCK_SIZE];
