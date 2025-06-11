@@ -14,12 +14,14 @@
 #define SUPER 0
 #define DIR 1
 #define FAT 2
+#define DATA 3
 
 #define SIZE 1024
 
 
 // Estrutura do Superbloco
 #define MAGIC_N           0xAC0010DE
+#define N_DATA_BLOCKS(x) (x.number_blocks - x.n_fat_blocks - 2)  // quantos blocos são usados para dados
 typedef struct{
 	int magic;
 	int number_blocks;
@@ -37,7 +39,7 @@ typedef struct{
 	unsigned char used;			// usar OK ou NON_OK
 	char name[MAX_LETTERS+1];	// nome do arquivo, adionado do terminador de string
 	unsigned int length;		// tam do arq em bytes
-	unsigned int first;			// primeiro bloco do arquivo na FAT
+	unsigned int first;			// primeiro bloco do arquivo como ÍNDICE DA FAT
 } dir_item;
 
 #define N_ITEMS (BLOCK_SIZE / sizeof(dir_item))	// quantos itens de diretório que cabem em um bloco
@@ -50,6 +52,27 @@ dir_item dir[N_ITEMS];			//variável para receber o diretório quando ele for pa
 unsigned int *fat;				//Variável para trazer a FAT para RAM (tomar cuidado, alocação dinâmica)
 
 int mountState = 0;				// 0 = n montado, 1 = montado
+
+/**
+ * Considerando que a FAT tem os números 0 e 1 reservados (livre e último bloco do arquivo, respectivamente)
+ * não podemos indicar que o próximo bloco está nos índices 0 ou 1 da FAT
+ * 
+ * Para contornar isso, começaremos a contar o índice da FAT a partir de 2
+ * 
+ * Este novo valor, que será o preenchimento da FAT, será chamado de special
+ */
+#define FAT_INDEX_2_SPECIAL(x) x + 2
+#define SPECIAL_2_FAT_INDEX(x) x - 2
+
+/**
+ * Similarmente ao anterior, também temos as conversões de índice para bloco
+ */
+#define BLOCK_2_FAT_INDEX(x) x - DATA
+#define FAT_INDEX_2_BLOCK(x) x + DATA
+
+#define SPECIAL_2_BLOCK(x) x + 1
+#define BLOCK_2_SPECIAL(x) x - 1
+
 
 /**
  * Cria novo sistema de arquivos no disco atual
@@ -84,6 +107,9 @@ int fat_format(const char *filename){
   	return 0;
 }
 
+/**
+ * Depura o sistema de arquivos
+ */
 void fat_debug(){
 	printf("depurando\n");
 
@@ -120,15 +146,18 @@ void fat_debug(){
 	printf("---- | Diretório | ---- \n");
 	for(int i = 0; i < N_ITEMS; i++){
 		if(state_dir[i].used == OK){
-			printf("Nome do Arquivo: %s\n", state_dir[i].name);
+            printf("Nome do Arquivo: %s\n", state_dir[i].name);
 			printf("Tamanho: %d\n", state_dir[i].length);
 			printf("Blocos: ");
 
-			int blocos = state_dir[i].first;
-			while(blocos != EOFF && blocos != FREE && blocos < state_sb.number_blocks){ // TODO: "blocos < state_sb.number_blocks" é necessário?
-				printf("%d ", blocos);
-				if(state_FAT[blocos] == EOFF) break;
-				blocos = state_FAT[blocos];
+			int fat_index = state_dir[i].first; // resgata o primeiro índice da FAT
+            printf ("%d ", FAT_INDEX_2_BLOCK(fat_index)); // mostra o primeiro bloco (todo arquivo com estado 'usado' tem ao menos um bloco)
+
+            int fat_special = state_FAT[fat_index]; // resgata o próximo dado
+            
+			while(fat_special != EOFF && fat_special != FREE && fat_special < state_sb.number_blocks){
+				printf("%d ", SPECIAL_2_BLOCK(fat_special));
+				fat_special = state_FAT[SPECIAL_2_FAT_INDEX(fat_special)];
 			}
 			printf("\n");
 		}
@@ -136,7 +165,6 @@ void fat_debug(){
 	printf("\n");
 	free(state_FAT);
 }
-
 
 int fat_mount(){
 	printf("---- Iniciando Montagem... ----\n");
@@ -179,7 +207,52 @@ int fat_mount(){
 
 }
 
+/**
+ * Cria uma entrada de diretório descrevendo um arquivo vazio
+ * 
+ * name: string de até 6 bytes
+ * 
+ */
 int fat_create(char *name){
+
+    if (mountState == 0) return ERRO;
+
+    if (strlen (name) > MAX_LETTERS) return ERRO;
+
+    // procura bloco vago
+    
+    int i;
+
+    for (i = 0; i < N_DATA_BLOCKS(sb); i++) {
+        
+        // se encontrar espaço vazio
+        if (fat[i] == 0) break;
+    }
+    if (i == N_DATA_BLOCKS(sb)) return ERRO; // caso não encontre espaço
+    
+    int fat_index = i; // para atualizar FAT posteriormente
+
+    // setup struct new_dir_item
+
+    dir_item new_dir_item;
+    new_dir_item.first = fat_index;
+    strcpy (new_dir_item.name, name);
+    new_dir_item.used = OK;
+    new_dir_item.length = 0;
+
+    for (i = 0; i < N_ITEMS; i++) {
+        
+        if (!dir[i].used) break; // se não usado
+    }
+    if (i == N_ITEMS) return ERRO;
+    
+    // atualizações
+    
+    dir[i] = new_dir_item;
+    ds_write (DIR, (char *)&dir);
+    fat[fat_index] = EOFF;
+    ds_write (FAT, fat);
+    
   	return 0;
 }
 
