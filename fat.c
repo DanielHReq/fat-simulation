@@ -39,7 +39,7 @@ typedef struct{
 	unsigned char used;			// usar OK ou NON_OK
 	char name[MAX_LETTERS+1];	// nome do arquivo, adionado do terminador de string
 	unsigned int length;		// tam do arq em bytes
-	unsigned int first;			// primeiro bloco do arquivo como ÍNDICE DA FAT
+	unsigned int first;			// primeiro bloco do arquivo na FAT
 } dir_item;
 
 #define N_ITEMS (BLOCK_SIZE / sizeof(dir_item))	// quantos itens de diretório que cabem em um bloco
@@ -53,33 +53,13 @@ unsigned int *fat;				//Variável para trazer a FAT para RAM (tomar cuidado, alo
 
 int mountState = 0;				// 0 = n montado, 1 = montado
 
-/**
- * Considerando que a FAT tem os números 0 e 1 reservados (livre e último bloco do arquivo, respectivamente)
- * não podemos indicar que o próximo bloco está nos índices 0 ou 1 da FAT
- * 
- * Para contornar isso, começaremos a contar o índice da FAT a partir de 2
- * 
- * Este novo valor, que será o preenchimento da FAT, será chamado de special
- */
-#define FAT_INDEX_2_SPECIAL(x) x + 2
-#define SPECIAL_2_FAT_INDEX(x) x - 2
-
-/**
- * Similarmente ao anterior, também temos as conversões de índice para bloco
- */
-#define BLOCK_2_FAT_INDEX(x) x - DATA
-#define FAT_INDEX_2_BLOCK(x) x + DATA
-
-#define SPECIAL_2_BLOCK(x) x + 1
-#define BLOCK_2_SPECIAL(x) x - 1
-
 
 // ====== FUNÇÕES AUXILIARES ======
 
 /**
  * Recebe um buffer (char *) e a quantidade de caracteres e o preenche com zeros
  */
-void zeros_buffer (char *buffer, unsigned int len) {
+int zeros_buffer (char *buffer, unsigned int len) {
 
     FILE *file;
     if( !(file = fopen("/dev/zero","r")) ) {
@@ -130,11 +110,30 @@ int fat_format(const char *filename){
     char buffer[BLOCK_SIZE];
     zeros_buffer (buffer, BLOCK_SIZE);
 
-    // escreve NULL em todos os blocos (exceto superbloco)
+    // escreve NULL em todos os blocos
 
-    for (int i = DIR; i < ds_size(); i++) {
-        ds_write(SUPER + i, buffer);
+    for (int i = SUPER; i < ds_size(); i++) {
+        ds_write(i, buffer);
     }
+
+    // escreve SUPERBLOCO
+
+    super state_sb;
+    state_sb.magic = MAGIC_N;
+    state_sb.number_blocks = ds_size();
+    state_sb.n_fat_blocks = ceil(ds_size() / SIZE);
+    memcpy (state_sb.empty, buffer, sizeof(state_sb.empty));
+
+    ds_write (SUPER, (char *)&state_sb);
+
+    // escreve FAT
+
+    int i;
+    unsigned int minimal_fat[BLOCK_SIZE / sizeof(unsigned int)];
+    for (i = 0; i < DATA; i++) minimal_fat[i] = BUSY;
+    for (; i < SIZE; i++) minimal_fat[i] = FREE;
+
+    ds_write (FAT, (char *)&minimal_fat);
 
   	return 0;
 }
@@ -182,14 +181,14 @@ void fat_debug(){
 			printf("Tamanho: %d\n", state_dir[i].length);
 			printf("Blocos: ");
 
-			int fat_index = state_dir[i].first; // resgata o primeiro índice da FAT
-            printf ("%d ", FAT_INDEX_2_BLOCK(fat_index)); // mostra o primeiro bloco (todo arquivo com estado 'usado' tem ao menos um bloco)
+			unsigned int fat_index = state_dir[i].first; // resgata o primeiro índice da FAT
+            printf ("%d ", fat_index); // mostra o primeiro bloco (todo arquivo com estado 'usado' tem ao menos um bloco)
 
-            int fat_special = state_FAT[fat_index]; // resgata o próximo dado
+            fat_index = state_FAT[fat_index]; // resgata o próximo dado
             
-			while(fat_special != EOFF && fat_special != FREE && fat_special < state_sb.number_blocks){
-				printf("%d ", SPECIAL_2_BLOCK(fat_special));
-				fat_special = state_FAT[SPECIAL_2_FAT_INDEX(fat_special)];
+			while(fat_index != EOFF && fat_index != FREE && fat_index < state_sb.number_blocks){
+				printf("%d ", fat_index);
+				fat_index = state_FAT[fat_index];
 			}
 			printf("\n");
 		}
@@ -258,7 +257,7 @@ int fat_create(char *name){
 
     // procura bloco vago
 
-    for (i = 0; i < N_DATA_BLOCKS(sb); i++) {
+    for (i = 0; i < sb.number_blocks; i++) {
         
         // se encontrar espaço vazio
         if (fat[i] == 0) break;
@@ -325,15 +324,13 @@ int fat_delete(char *name){
     
     // remove os blocos associados
 
-    unsigned int fat_special = FAT_INDEX_2_SPECIAL(fat_index);
     do {
-        ds_write (SPECIAL_2_BLOCK(fat_special), buffer);
-        fat_index = SPECIAL_2_FAT_INDEX(fat_special);
-        fat_special = fat[fat_index];
+        ds_write (fat_index, buffer);
+        fat_index = fat[fat_index];
 
         fat[fat_index] = 0; // liberar o endereço na FAT
 
-    } while(fat_special != EOFF && fat_special != FREE);
+    } while(fat_index != EOFF && fat_index != FREE);
     
     // atualiza a FAT no disco
 
